@@ -5,4 +5,6 @@ Created on Mon Jul 29 19:09:09 2024
 @author: bagus
 """
 
+import pandas as pd
+
 print("Hello World");
