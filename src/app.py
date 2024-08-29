@@ -5,242 +5,171 @@ Created on Mon Jul 29 19:09:09 2024
 @author: bagus
 """
 
-# %%[sec_1]
+# ------------ HP Side ---------------
+from tespy.components import (Compressor, Condenser ,SimpleHeatExchanger, HeatExchanger, 
+                              Pump, Turbine, Valve, CycleCloser, Source, Sink)
+from tespy.connections import Connection,  Bus
 from tespy.networks import Network
 
-# create a network object with R134a as fluid
-my_plant = Network()
-my_plant.set_attr(T_unit='C', p_unit='bar', h_unit='kJ / kg')
-# %%[sec_2]
-from tespy.components import (
-    CycleCloser, Pump, Condenser, Turbine, SimpleHeatExchanger, Source, Sink
+HP = Network(fluids=['Water', 'NH3'], p_unit='bar', T_unit='C', h_unit='kJ / kg')
+
+# Heat Pump Cycle Components (Charging)
+hp_compressor = Compressor('HP Compressor')
+hp_condenser = Condenser('HP Condenser')  # Transfers heat to hot storage
+hp_valve = Valve('HP Expansion Valve')
+hp_evaporator = SimpleHeatExchanger('HP Evaporator')
+hp_closer = CycleCloser('HP Cycle Closer')  # Closes the heat pump loop
+
+# Sources and Sinks
+hp_ambient_source = Source('hp Ambient Source')
+hp_ambient_sink = Sink('hp Ambient Sink')
+
+# Sources and Sinks
+hp_ambient_source_ev = Source('hp Ambient Source ev')
+hp_ambient_sink_ev = Sink('hp Ambient Sink ev')
+
+# Heat Pump Cycle Connections (Closed Loop with CycleCloser)
+hp_c1 = Connection(hp_closer, 'out1', hp_evaporator, 'in1')
+hp_c2 = Connection(hp_evaporator, 'out1', hp_compressor, 'in1')
+hp_c3 = Connection(hp_compressor, 'out1', hp_condenser, 'in1')
+hp_c4 = Connection(hp_condenser, 'out1', hp_valve, 'in1')
+hp_c5 = Connection(hp_valve, 'out1', hp_closer, 'in1')
+
+HP.add_conns(hp_c1, hp_c2, hp_c3, hp_c4, hp_c5)
+
+# set Parameter
+hp_compressor.set_attr(eta_s=0.98)
+hp_condenser.set_attr(pr2=0.99)
+hp_evaporator.set_attr(pr=0.98)
+hp_valve.set_attr(pr=0.9)
+
+from CoolProp.CoolProp import PropsSI as PSI
+p_cond = PSI("P", "Q", 1, "T", 273.15 + 95, 'NH3') / 1e5
+h_sat = PSI("H", "Q", 0, "T", 273.15 + 20, 'NH3') / 1e3
+h_sat_liq = PSI("H", "Q", 1, "T", 273.15 + 80, 'NH3') / 1e3
+hp_c3.set_attr(m=10, T=170, p=92, fluid={'NH3': 1})
+
+# ---------- storage -------------
+# Hot and Cold Storage Interfaces (Simplified)
+sto_c5 = Connection(hp_ambient_source, "out1", hp_condenser, "in2")
+sto_c6 = Connection(hp_condenser, "out2", hp_ambient_sink, "in1")
+
+HP.add_conns(sto_c5, sto_c6)
+
+# set parameter storage
+sto_c5.set_attr(m=10, T=30, p=2, fluid={"water": 1})
+
+# ---------- Rankine cycle -------------
+RC = Network(fluids=['Water', 'R134a'], p_unit='bar', T_unit='C', h_unit='kJ / kg')
+
+# Rankine Cycle Components (Discharging)
+rc_pump = Pump('RC Pump')
+rc_steamGen = HeatExchanger('RC steam generator')  # Receives heat from hot storage
+rc_turbine = Turbine('RC Turbine')
+rc_condenser = Condenser('RC Condenser')
+rc_closer = CycleCloser('RC Cycle Closer')  # Closes the Rankine cycle loop
+
+# Sources and Sinks
+rc_ambient_source_1 = Source('rc Ambient Source 1')
+rc_ambient_sink_1 = Sink('rc Ambient Sink 1')
+
+# Sources and Sinks
+rc_ambient_source_2 = Source('rc Ambient Source 2')
+rc_ambient_sink_2 = Sink('rc Ambient Sink 2')
+
+# Rankine Cycle Connections (Closed Loop with CycleCloser)
+rc_c1 = Connection(rc_closer, 'out1', rc_turbine, 'in1')
+rc_c2 = Connection(rc_turbine, 'out1', rc_condenser, 'in1')
+rc_c3 = Connection(rc_condenser, 'out1', rc_pump, 'in1')
+rc_c4 = Connection(rc_pump, 'out1', rc_steamGen, 'in2')
+rc_c5 = Connection(rc_steamGen, 'out2', rc_closer, 'in1')
+
+RC.add_conns(rc_c1, rc_c2, rc_c3, rc_c4, rc_c5)
+
+# Connections to the ambient environment (source and sink)
+rc_ambient_c11 = Connection(rc_ambient_source_1, 'out1', rc_condenser, 'in2')
+rc_ambient_c12 = Connection(rc_condenser, 'out2', rc_ambient_sink_1, 'in1')
+
+RC.add_conns(rc_ambient_c11, rc_ambient_c12)
+
+# Connections to the ambient environment (source and sink)
+rc_ambient_c21 = Connection(rc_ambient_source_2, 'out1', rc_steamGen, 'in1')
+rc_ambient_c22 = Connection(rc_steamGen, 'out1', rc_ambient_sink_2, 'in1')
+
+RC.add_conns(rc_ambient_c21, rc_ambient_c22)
+
+# set parameter RC
+rc_condenser.set_attr(pr1=1, pr2=0.98)
+rc_steamGen.set_attr(pr1=0.98,pr2=0.98)
+rc_turbine.set_attr(eta_s=0.9)
+rc_pump.set_attr(eta_s=0.75, P=1e4)
+
+rc_ambient_c11.set_attr(m=10, T=50, p=2, fluid={'water': 1})
+rc_ambient_c21.set_attr(m=10, p=2, fluid={'water': 1})
+rc_c1.set_attr(T=500, p=110, m=10, fluid={'water': 1})
+
+# ---------- Generator -------------
+generator = Bus("generator")
+generator.add_comps(
+    {"comp": rc_turbine, "char": 0.98, "base": "component"},
+    {"comp": rc_pump, "char": 0.98, "base": "bus"},
 )
+RC.add_busses(generator)
 
-cc = CycleCloser('cycle closer')
-sg = SimpleHeatExchanger('steam generator')
-mc = Condenser('main condenser')
-tu = Turbine('steam turbine')
-fp = Pump('feed pump')
-
-cwso = Source('cooling water source')
-cwsi = Sink('cooling water sink')
-
-from tespy.connections import Connection
-
-c1 = Connection(cc, 'out1', tu, 'in1', label='1')
-c2 = Connection(tu, 'out1', mc, 'in1', label='2')
-c3 = Connection(mc, 'out1', fp, 'in1', label='3')
-c4 = Connection(fp, 'out1', sg, 'in1', label='4')
-c0 = Connection(sg, 'out1', cc, 'in1', label='0')
-
-my_plant.add_conns(c1, c2, c3, c4, c0)
-
-c11 = Connection(cwso, 'out1', mc, 'in2', label='11')
-c12 = Connection(mc, 'out2', cwsi, 'in1', label='12')
-
-my_plant.add_conns(c11, c12)
-# %%[sec_3]
-mc.set_attr(pr1=1, pr2=0.98)
-sg.set_attr(pr=0.9)
-tu.set_attr(eta_s=0.9)
-fp.set_attr(eta_s=0.75)
-
-c11.set_attr(T=20, p=1.2, fluid={'water': 1})
-c12.set_attr(T=30)
-c1.set_attr(T=600, p=150, m=10, fluid={'water': 1})
-c2.set_attr(p=0.1)
-
-my_plant.solve(mode='design')
-my_plant.print_results()
-# %%[sec_4]
-mc.set_attr(ttd_u=4)
-c2.set_attr(p=None)
-
-my_plant.solve(mode='design')
-my_plant.print_results()
-
-# %%[sec_5]
-# Adding feature to plot the T-s Diagram using fluprodia library
-# Importing necessary library
-import matplotlib.pyplot as plt
 import numpy as np
-from fluprodia import FluidPropertyDiagram
+import pandas as pd
 
-# Initial Setup
-diagram = FluidPropertyDiagram('water')
-diagram.set_unit_system(T='°C', p='bar', h='kJ/kg')
+# create a list named data
+power = [0, 0, 0, 0, 0, 0, 5e5, 5e5, 5e5, 1e5, 1e5, 1e5, 1e5, 4e5, 4e5, 4e5, 4e5, 4e5, 0, 0, 0, 0, 0, 0]
 
-# Storing the model result in the dictionary
-result_dict = {}
-result_dict.update(
-    {cp.label: cp.get_plotting_data()[1] for cp in my_plant.comps['object']
-     if cp.get_plotting_data() is not None})
+# create Pandas array using data
+array1 = pd.DataFrame(power, columns=['Power'])
+i=0
+for watt in array1['Power']:
+    if watt == 0:
+        array1.loc[i,1] =  0
+        array1.loc[i,2] =  0
+        # array1.loc[i,3] =  0
+    else:
+        hp_compressor.set_attr(P=watt)
+        HP.solve(mode='design')
+        array1.loc[i,1] =  hp_condenser.Q.val
+        array1.loc[i,2] =  10*sto_c6.h.val
+        # rc_ambient_c21.set_attr(h=sto_c6.h.val)
+        # RC.solve(mode='design')
+        # array1.loc[i,3] = -1*generator.P.val
+    i=i+1
+for j in range(len(array1)):
+    if j < 18:
+        array1.loc[j,3] = 0
+        array1.loc[j,4] = 0
+    else:
+        array1.loc[j,3] = array1[2].sum()/(6*10)
+        rc_ambient_c21.set_attr(h=array1.loc[j,3])
+        RC.solve(mode='design')
+        array1.loc[j,4] = -1*generator.P.val
+        
+import matplotlib.pyplot as plt
 
-# Iterate over the results obtained from TESPy simulation
-for key, data in result_dict.items():
-    # Calculate individual isolines for T-s diagram
-    result_dict[key]['datapoints'] = diagram.calc_individual_isoline(**data)
-
-# Create a figure and axis for plotting T-s diagram
-fig, ax = plt.subplots(1, figsize=(20, 10))
-isolines = {
-    'Q': np.linspace(0, 1, 2),
-    'p': np.array([1, 2, 5, 10, 20, 50, 100, 300]),
-    'v': np.array([]),
-    'h': np.arange(500, 3501, 500)
-}
-
-# Set isolines for T-s diagram
-diagram.set_isolines(**isolines)
-diagram.calc_isolines()
-
-# Draw isolines on the T-s diagram
-diagram.draw_isolines(fig, ax, 'Ts', x_min=0, x_max=7500, y_min=0, y_max=650)
-
-# Adjust the font size of the isoline labels
-for text in ax.texts:
-    text.set_fontsize(10)
-
-# Plot T-s curves for each component
-for key in result_dict.keys():
-    datapoints = result_dict[key]['datapoints']
-    _ = ax.plot(datapoints['s'], datapoints['T'], color='#ff0000', linewidth=2)
-    _ = ax.scatter(datapoints['s'][0], datapoints['T'][0], color='#ff0000')
-
-# Set labels and title for the T-s diagram
-ax.set_xlabel('Entropy, s in J/kgK', fontsize=16)
-ax.set_ylabel('Temperature, T in °C', fontsize=16)
-ax.set_title('T-s Diagram of Rankine Cycle', fontsize=20)
-
-# Set font size for the x-axis and y-axis ticks
-ax.tick_params(axis='x', labelsize=12)
-ax.tick_params(axis='y', labelsize=12)
-plt.tight_layout()
-
-# Save the T-s diagram plot as an SVG file
-fig.savefig('rankine_ts_diagram.svg')
-
-# %%[sec_6]
-from tespy.connections import Bus
-
-powergen = Bus("electrical power output")
-
-powergen.add_comps(
-    {"comp": tu, "char": 0.97, "base": "component"},
-    {"comp": fp, "char": 0.97, "base": "bus"},
+fig, ax = plt.subplots(figsize=(30, 10)) 
+ax.plot(array1.index, array1['Power'], color="green")
+ax.plot(array1.index, array1[4], color="blue")
+ax.fill_between(
+    array1.index, array1['Power'], 
+    interpolate=True, color="green", alpha=0.25, 
+    label="Positive"
 )
-
-my_plant.add_busses(powergen)
-
-my_plant.solve(mode='design')
-my_plant.print_results()
-# %%[sec_7]
-powergen.set_attr(P=-10e6)
-c1.set_attr(m=None)
-
-my_plant.solve(mode='design')
-my_plant.print_results()
-# %%[sec_8]
-my_plant.set_attr(iterinfo=False)
-c1.set_attr(m=20)
-powergen.set_attr(P=None)
-
-# make text reasonably sized
-plt.rc('font', **{'size': 18})
-
-data = {
-    'T_livesteam': np.linspace(450, 750, 7),
-    'T_cooling': np.linspace(15, 45, 7),
-    'p_livesteam': np.linspace(75, 225, 7)
-}
-eta = {
-    'T_livesteam': [],
-    'T_cooling': [],
-    'p_livesteam': []
-}
-power = {
-    'T_livesteam': [],
-    'T_cooling': [],
-    'p_livesteam': []
-}
-
-for T in data['T_livesteam']:
-    c1.set_attr(T=T)
-    my_plant.solve('design')
-    eta['T_livesteam'] += [abs(powergen.P.val) / sg.Q.val * 100]
-    power['T_livesteam'] += [abs(powergen.P.val) / 1e6]
-
-# reset to base temperature
-c1.set_attr(T=600)
-
-for T in data['T_cooling']:
-    c12.set_attr(T=T)
-    c11.set_attr(T=T - 10)
-    my_plant.solve('design')
-    eta['T_cooling'] += [abs(powergen.P.val) / sg.Q.val * 100]
-    power['T_cooling'] += [abs(powergen.P.val) / 1e6]
-
-# reset to base temperature
-c12.set_attr(T=30)
-c11.set_attr(T=20)
-
-for p in data['p_livesteam']:
-    c1.set_attr(p=p)
-    my_plant.solve('design')
-    eta['p_livesteam'] += [abs(powergen.P.val) / sg.Q.val * 100]
-    power['p_livesteam'] += [abs(powergen.P.val) / 1e6]
-
-# reset to base pressure
-c1.set_attr(p=150)
-
-
-fig, ax = plt.subplots(2, 3, figsize=(16, 8), sharex='col', sharey='row')
-
-ax = ax.flatten()
-[a.grid() for a in ax]
-
-i = 0
-for key in data:
-    ax[i].scatter(data[key], eta[key], s=100, color="#1f567d")
-    ax[i + 3].scatter(data[key], power[key], s=100, color="#18a999")
-    i += 1
-
-ax[0].set_ylabel('Efficiency in %')
-ax[3].set_ylabel('Power in MW')
-ax[3].set_xlabel('Live steam temperature in °C')
-ax[4].set_xlabel('Feed water temperature in °C')
-ax[5].set_xlabel('Live steam pressure in bar')
-plt.tight_layout()
-fig.savefig('rankine_parametric-darkmode.svg')
-plt.close()
-# %%[sec_9]
-mc.set_attr(design=["ttd_u"], offdesign=["kA"])
-c11.set_attr(offdesign=["v"])
-c12.set_attr(design=["T"])
-c1.set_attr(design=["p"])
-tu.set_attr(offdesign=["cone"])
-# %%[sec_10]
-my_plant.solve("design")
-my_plant.save("rankine_design")
-# %%[sec_11]
-partload_efficiency = []
-partload_m_range = np.linspace(20, 10, 11)
-
-for m in partload_m_range:
-    c1.set_attr(m=m)
-    my_plant.solve("offdesign", design_path="rankine_design")
-    partload_efficiency += [abs(powergen.P.val) / sg.Q.val * 100]
-
-
-fig, ax = plt.subplots(1, figsize=(16, 8))
-ax.grid()
-ax.scatter(partload_m_range, partload_efficiency, s=100, color="#1f567d")
-ax.set_xlabel("Mass flow in kg/s")
-ax.set_ylabel("Plant electrical efficiency in %")
-
-plt.tight_layout()
-fig.savefig('rankine_partload.svg')
-plt.close()
-
-# test comment
-# %%[sec_12]
+ax.fill_between(
+    array1.index, array1[4], 
+    interpolate=True, color="blue", alpha=0.25, 
+    label="Positive"
+)
+ax.set_xlabel('Hours')
+ax.set_ylabel('Power in W')
+ax.set_xticks(np.arange(0, 24, 1.0))
+ax.set_xlim(left=0)
+ax.set_ylim(bottom=0)
+ax.set_title('Test Charging and Discharging Power')
+plt.grid(True, which='both', axis='both')
+plt.show()
+plt.savefig('test.png')
