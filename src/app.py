@@ -45,7 +45,7 @@ ev_c3 = Connection(hp_evaporator, 'out2', hp_ventil_ev, 'in1')
 ev_c4 = Connection(hp_ventil_ev, 'out1', hp_ambient_sink_ev, 'in1')
 nw.add_conns(ev_c1, ev_c2, ev_c3, ev_c4)
 ev_c1.set_attr(m=30, T=10, p=1, fluid={"water": 1})
-ev_c4.set_attr(p=1)
+ev_c4.set_attr(p=ev_c1.p.val)
 
 # set Parameter
 hp_compressor.set_attr(eta_s=1, P=1e5)
