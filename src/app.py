@@ -128,8 +128,8 @@ rc_pump.set_attr(eta_s=0.75, P=1e4)
 rc_pump_sto.set_attr(eta_s=0.75, P=1e4)
 
 rc_ambient_c11.set_attr(m=10, T=10, p=2, fluid={'Ethanol': 1})
-rc_ambient_c21.set_attr(T=sto_c6.T.val, p=sto_c6.p.val, fluid={'water': 1})
-rc_c2.set_attr(m=10, T=350, p=5, fluid={'Ethanol': 1})
+rc_ambient_c21.set_attr(m=sto_c5.m.val, T=sto_c6.T.val, p=sto_c6.p.val, fluid={'water': 1})
+rc_c2.set_attr(T=350, p=5, fluid={'Ethanol': 1})
 rc_ambient_c22.set_attr(T=sto_c5.T.val, p=sto_c5.p.val)
 
 # ---------- Generator -------------
