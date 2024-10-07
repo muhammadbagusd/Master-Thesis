@@ -185,6 +185,7 @@ isolines = {
     'h': np.arange(500, 3501, 500)
 }
 
+
 # Storing the model result in the dictionary
 for j in range(len(data)):
     result_dict = {}
@@ -220,6 +221,7 @@ diagram.set_unit_system(T='°C', p='bar', h='kJ/kg')
 result_dict = {}
 result_dict.update(
     {cp.label: cp.get_plotting_data()[1] for cp in RC.comps['object']
+
       if cp.get_plotting_data() is not None})
 
 # Iterate over the results obtained from TESPy simulation
