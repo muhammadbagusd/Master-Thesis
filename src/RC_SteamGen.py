@@ -6,7 +6,7 @@ from tespy.components import (Compressor, Condenser ,SimpleHeatExchanger,
 from tespy.connections import Connection, Bus
 from tespy.networks import Network
 # ---------- Rankine cycle -------------
-RC = Network(fluids=['Ethanol', 'R134a', 'water'], p_unit='bar', T_unit='C', h_unit='kJ / kg')
+RC = Network(fluids=['Ethanol', 'R134a'], p_unit='bar', T_unit='C', h_unit='kJ / kg')
 
 # Rankine Cycle Components (Discharging)
 rc_pump = Pump('RC Pump')
@@ -65,9 +65,8 @@ rc_evaporator.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
 rc_superHeater.set_attr(pr1=0.98, pr2=0.98)
 
 rc_ambient_c11.set_attr(m=10, p=1, T=10, fluid={'water': 1})
-rc_storage_c21.set_attr(m=8, p=5, T=90, fluid={'water': 1})
+rc_storage_c21.set_attr(m=sto_c5.m.val, T=sto_c6.T.val, p=sto_c6.p.val, fluid={'water': 1})
 rc_c1.set_attr(m=30, T=223, fluid={'Ethanol': 1})
-
 
 # ---------- Generator -------------
 generator = Bus("generator")
