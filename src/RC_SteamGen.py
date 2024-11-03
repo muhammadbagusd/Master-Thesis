@@ -6,7 +6,7 @@ from tespy.components import (Compressor, Condenser ,SimpleHeatExchanger,
 from tespy.connections import Connection, Bus
 from tespy.networks import Network
 # ---------- Rankine cycle -------------
-RC = Network(fluids=['Ethanol', 'R134a', 'water'], p_unit='bar', T_unit='C', h_unit='kJ / kg')
+RC = Network(fluids=['Ethanol', 'water'], p_unit='bar', T_unit='C', h_unit='kJ / kg')
 
 # Rankine Cycle Components (Discharging)
 p = Pump('RC Pump')
