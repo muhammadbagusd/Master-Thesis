@@ -9,73 +9,75 @@ from tespy.networks import Network
 RC = Network(fluids=['Ethanol', 'R134a', 'water'], p_unit='bar', T_unit='C', h_unit='kJ / kg')
 
 # Rankine Cycle Components (Discharging)
-rc_pump = Pump('RC Pump')
-rc_steamGen = HeatExchanger('RC steam generator')  # Receives heat from hot storage
-rc_turbine = Turbine('RC Turbine')
-rc_condenser = Condenser('RC Condenser')
-rc_closer = CycleCloser('RC Cycle Closer')  # Closes the Rankine cycle loop
+p = Pump('RC Pump')
+sg = HeatExchanger('RC steam generator')  # Receives heat from hot storage
+tb = Turbine('RC Turbine')
+cd = Condenser('RC Condenser')
+cc = CycleCloser('RC Cycle Closer')  # Closes the Rankine cycle loop
 # steam generator
-rc_preheater = HeatExchanger("preheater")
-rc_evaporator = HeatExchanger("evaporator")
-rc_superHeater = HeatExchanger("Super heater")
+ph = HeatExchanger("preheater")
+ev = HeatExchanger("evaporator")
+sh = HeatExchanger("Super heater")
 
 # Sources and Sinks
-rc_ambient_source_1 = Source('rc Ambient Source 1')
-rc_ambient_sink_1 = Sink('rc Ambient Sink 1')
+aso = Source('rc Ambient Source 1')
+asi = Sink('rc Ambient Sink 1')
 
 # Sources and Sinks
-rc_storage_source = Source('rc Storage Source')
-rc_storage_sink = Sink('rc Storage Sink')
+sso = Source('rc Storage Source')
+ssi = Sink('rc Storage Sink')
 
-# Pump Storage
-rc_pump_sto = Pump('RC Pump Storage')
-rc_ventil_sto = Valve('RC Valve Storage')
 
 # Rankine Cycle Connections (Closed Loop with CycleCloser)
-rc_c1 = Connection(rc_closer, 'out1', rc_turbine, 'in1', label='RC1')
-rc_c2 = Connection(rc_turbine, 'out1', rc_condenser, 'in1', label='RC2')
-rc_c3 = Connection(rc_condenser, 'out1', rc_pump, 'in1', label='RC3')
-rc_c4 = Connection(rc_pump, 'out1', rc_preheater, 'in2', label='RC4')
-rc_c5 = Connection(rc_preheater, 'out2', rc_superHeater, 'in1', label='RC5')
-rc_c6 = Connection(rc_superHeater, 'out1', rc_evaporator, 'in1', label='RC6')
-rc_c7 = Connection(rc_evaporator, 'out1', rc_superHeater, 'in2', label='RC7')
-rc_c8 = Connection(rc_superHeater, 'out2', rc_closer, 'in1', label='RC8')
+c1 = Connection(cc, 'out1', tb, 'in1', label='1')
+c2 = Connection(tb, 'out1', cd, 'in1', label='2')
+c3 = Connection(cd, 'out1', p, 'in1', label='3')
+c4 = Connection(p, 'out1', ph, 'in2', label='4')
+c5 = Connection(ph, 'out2', ev, 'in2', label='5')
+c6 = Connection(ev, 'out2', sh, 'in2', label='6')
+c7 = Connection(sh, 'out2', cc, 'in1', label='7')
 
-RC.add_conns(rc_c1, rc_c2, rc_c3, rc_c4, rc_c5, rc_c6, rc_c7, rc_c8)
+RC.add_conns(c1, c2, c3, c4, c5, c6, c7)
 
 # Connections to the ambient environment (source and sink)
-rc_ambient_c11 = Connection(rc_ambient_source_1, 'out1', rc_condenser, 'in2')
-rc_ambient_c12 = Connection(rc_condenser, 'out2', rc_ambient_sink_1, 'in1')
+c11 = Connection(aso, 'out1', cd, 'in2', label='11')
+c12 = Connection(cd, 'out2', asi, 'in1', label='12')
 
-RC.add_conns(rc_ambient_c11, rc_ambient_c12)
+RC.add_conns(c11, c12)
 
 # Connections to the steam generator (source and sink)
-rc_storage_c21 = Connection(rc_storage_source, 'out1', rc_evaporator, 'in2', label='RC_sto: sto to ev')
-rc_storage_c22 = Connection(rc_evaporator, 'out2', rc_preheater, 'in1', label='RC_sto: ev to ph')
-rc_storage_c23 = Connection(rc_preheater, 'out1', rc_storage_sink, 'in1', label='RC_sto: ph to sink')
+c21 = Connection(sso, 'out1', sh, 'in1', label='21')
+c22 = Connection(sh, 'out1', ev, 'in1', label='22')
+c23 = Connection(ev, 'out1', ph, 'in1', label='23')
+c24 = Connection(ph, 'out1', ssi, 'in1', label='24')
 
-RC.add_conns(rc_storage_c21, rc_storage_c22, rc_storage_c23)
+RC.add_conns(c21, c22, c23,c24)
+
+# ------- codenser connection --------
+c11.set_attr(p=1, T=15, fluid={'water': 1})
+# -------- storage connection -----------
+c21.set_attr(T=80, p=1, fluid={'water': 1}) 
+# ----------- main cycle connection ----------
+c3.set_attr(p=0.1)
+c4.set_attr(p=0.72, T=30, fluid={'ethanol': 1}) 
+c6.set_attr(x=1) # evaporate at 70°C
+c7.set_attr(Td_bp=5)
 
 # set parameter RC
-rc_condenser.set_attr(pr1=0.98, pr2=0.98, ttd_u=5)
-rc_turbine.set_attr(eta_s=0.8)
-rc_pump.set_attr(eta_s=0.76, P=1e5)
-rc_preheater.set_attr(pr1=0.98, pr2=0.98, ttd_u=5)
-rc_evaporator.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
-rc_superHeater.set_attr(pr1=0.98, pr2=0.98)
-
-rc_ambient_c11.set_attr(m=10, p=1, T=10, fluid={'water': 1})
-rc_storage_c21.set_attr(m=8, p=5, T=90, fluid={'water': 1})
-rc_c1.set_attr(m=30, T=223, fluid={'Ethanol': 1})
-
+cd.set_attr(pr1=0.98, pr2=0.98)
+tb.set_attr(eta_s=0.8)
+p.set_attr(eta_s=0.8, P=1e5)
+ph.set_attr(pr1=0.98, pr2=0.98, ttd_u=5)
+ev.set_attr(pr1=0.98, pr2=0.98, ttd_u=5)
+sh.set_attr(pr1=0.98, pr2=0.98)
 
 # ---------- Generator -------------
-generator = Bus("generator")
-generator.add_comps(
-    {"comp": rc_turbine, "char": 0.98, "base": "component"},
-    {"comp": rc_pump, "char": 0.98, "base": "bus"},
+gen = Bus("generator")
+gen.add_comps(
+    {"comp": tb, "char": 0.98, "base": "component"},
+    {"comp": p, "char": 0.98, "base": "bus"},
 )
 
-RC.add_busses(generator)
+RC.add_busses(gen)
 RC.solve(mode='design')
 RC.print_results()
