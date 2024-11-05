@@ -66,7 +66,7 @@ c6.set_attr(T=50)
 c11.set_attr(T=5, p=1, fluid={'water': 1})
 c12.set_attr(m=10)
 
-c21.set_attr(m=10, p=5, fluid={"water": 1})
+c21.set_attr(m=10, p=1, fluid={"water": 1})
 
 nw.solve(mode='design')
 nw.print_results()
