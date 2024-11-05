@@ -16,6 +16,7 @@ cc = CycleCloser('HP Cycle Closer')  # Closes the heat pump loop
 hx1 = HeatExchanger('Heat Exchanger 1')
 hx2 = HeatExchanger('Heat Exchanger 2')
 
+
 # Sources and Sinks
 aso = Source('hp Ambient Source ev')
 asi = Sink('hp Ambient Sink ev')
@@ -52,15 +53,19 @@ nw.add_conns(c21, c22, c23, c24)
 
 # ---new parameters ---
 hx1.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
-hx2.set_attr(pr1=0.98, pr2=0.98, ttd_u=6)
-cd.set_attr(pr1=0.98, pr2=0.98, ttd_u=10)
-ev.set_attr(pr1=0.98, pr2=0.98, ttd_l=10)
+hx2.set_attr(pr1=0.98, pr2=0.98)
+cd.set_attr(pr1=0.98, pr2=0.98)
+ev.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
 cp.set_attr(eta_s=0.85, P=1e7)
 
 c2.set_attr(x=1, fluid={'NH3': 1})
-c4.set_attr(T=90)
-c11.set_attr(T=10, p=1, fluid={'water': 1})
+c4.set_attr(T=80)
+c5.set_attr(T=60)
+c6.set_attr(T=50)
+
+c11.set_attr(T=5, p=1, fluid={'water': 1})
 c12.set_attr(m=10)
+
 c21.set_attr(m=10, p=5, fluid={"water": 1})
 
 nw.solve(mode='design')
