@@ -1,269 +1,141 @@
-# ------------ HP edited ---------------
-from tespy.components import (Compressor, Condenser ,SimpleHeatExchanger, 
-                              HeatExchanger, Pump, Turbine, Valve, CycleCloser, 
-                              Source, Sink)
-from tespy.connections import Connection, Bus
+from tespy.components import Compressor, Condenser, SimpleHeatExchanger, HeatExchanger, Pump, Turbine, CycleCloser, Source, Sink
+from tespy.connections import Connection
 from tespy.networks import Network
 
-nw = Network(fluids=['Water', 'NH3', 'ethanol', 'Air'], p_unit='bar', T_unit='C', h_unit='kJ / kg')
-
-# Heat Pump Cycle Components (Charging)
-hp_compressor = Compressor('HP Compressor')
-hp_condenser = Condenser('HP Condenser')  # Transfers heat to hot storage
-hp_valve = Valve('HP Expansion Valve')
-hp_evaporator = HeatExchanger('HP Evaporator')
-hp_closer = CycleCloser('HP Cycle Closer')  # Closes the heat pump loop
-
+# Create Brayton Cycle Network
+nw = Network(fluids=['Ethanol', 'water', 'NH3'], p_unit='bar', T_unit='C', h_unit='kJ / kg')
+# HP Components
+cp = Compressor('HP Compressor')
+cd = Condenser('HP Condenser')  # Transfers heat to hot storage
+va = Valve('HP Expansion Valve')
+ev = HeatExchanger('HP Evaporator')
+cc = CycleCloser('HP Cycle Closer')  # Closes the heat pump loop
+hx1 = HeatExchanger('Heat Exchanger 1')
+hx2 = HeatExchanger('Heat Exchanger 2')
 # Sources and Sinks
-hp_ambient_source_ev = Source('hp Ambient Source ev')
-hp_ambient_sink_ev = Sink('hp Ambient Sink ev')
-
+aso = Source('hp Ambient Source ev')
+asi = Sink('hp Ambient Sink ev')
 # Evaporator Sources and Sinks
-hp_ambient_source = Source('hp Ambient Source')
-hp_ambient_sink = Sink('hp Ambient Sink')
+sso = Source('Storage Source')
+ssi = Sink('Storage Sink')
 
-# Heat Pump Cycle Connections (Closed Loop with CycleCloser)
-hp_c1 = Connection(hp_closer, 'out1', hp_evaporator, 'in1', label='1. cc to ev')
-hp_c2 = Connection(hp_evaporator, 'out1', hp_compressor, 'in1', label='2. ev to cp')
-hp_c3 = Connection(hp_compressor, 'out1', hp_condenser, 'in1', label='3. cp to cd')
-hp_c4 = Connection(hp_condenser, 'out1', hp_valve, 'in1', label='4. cd to va')
-hp_c5 = Connection(hp_valve, 'out1', hp_closer, 'in1', label='5. va to cc')
-
-nw.add_conns(hp_c1, hp_c2, hp_c3, hp_c4, hp_c5)
-
-# alternative connection
-ev_c1 = Connection(hp_ambient_source_ev, 'out1', hp_evaporator, 'in2', label='HE_amb: ambient to ev')
-ev_c2 = Connection(hp_evaporator, 'out2', hp_ambient_sink_ev, 'in1', label='HE_amb: ev to ambient')
-
-nw.add_conns(ev_c1, ev_c2)
-
-# ---------- storage -------------
-# Hot and Cold Storage Interfaces (Simplified)
-sto_c5 = Connection(hp_ambient_source, "out1", hp_condenser, "in2", label='HE_sto: storage to cd')
-sto_c6 = Connection(hp_condenser, "out2", hp_ambient_sink, "in1",label="HE_sto: cd to storage")
-
-nw.add_conns(sto_c5, sto_c6)
-
-# ---new parameters ---
-hp_condenser.set_attr(pr1=0.98, pr2=0.98, ttd_u=5)
-hp_evaporator.set_attr(pr1=0.98, pr2=0.98, ttd_l=10)
-hp_compressor.set_attr(eta_s=0.85, P=1e7)
-
-hp_c2.set_attr(x=1, fluid={'NH3': 1})
-ev_c1.set_attr(m=10, p=1, fluid={'water': 1})
-sto_c6.set_attr(m=10, p=5, T=95, fluid={"water": 1})
-
-# nw.solve(mode='design')
-# nw.print_results()
-#%% RC
-# ---- RC with pump and ventil ---------
-# ---------- Rankine cycle -------------
-RC = Network(fluids=['Ethanol', 'water'], p_unit='bar', T_unit='C', h_unit='kJ / kg')
-
+# ORC components
 # Rankine Cycle Components (Discharging)
-rc_pump = Pump('RC Pump')
-rc_steamGen = HeatExchanger('RC steam generator')  # Receives heat from hot storage
-rc_turbine = Turbine('RC Turbine')
-rc_condenser = Condenser('RC Condenser')
-rc_closer = CycleCloser('RC Cycle Closer')  # Closes the Rankine cycle loop
-
+p = Pump('RC Pump')
+sg = HeatExchanger('RC steam generator')  # Receives heat from hot storage
+tb = Turbine('RC Turbine')
+cd = Condenser('RC Condenser')
+cc = CycleCloser('RC Cycle Closer')  # Closes the Rankine cycle loop
+# steam generator
+ph = HeatExchanger("preheater")
+ev = HeatExchanger("evaporator")
+sh = HeatExchanger("Super heater")
 # Sources and Sinks
-rc_ambient_source_1 = Source('rc Ambient Source 1')
-rc_ambient_sink_1 = Sink('rc Ambient Sink 1')
-
+aso = Source('rc Ambient Source 1')
+asi = Sink('rc Ambient Sink 1')
 # Sources and Sinks
-rc_ambient_source_2 = Source('rc Ambient Source 2')
-rc_ambient_sink_2 = Sink('rc Ambient Sink 2')
+sso = Source('rc Storage Source')
+ssi = Sink('rc Storage Sink')
 
-# Pump Storage
-rc_pump_sto = Pump('RC Pump Storage')
-rc_ventil_sto = Valve('RC Valve Storage')
+# Create network connections (start with charging phase)
+def create_connections(charging_mode=True):
+    # Set default connections for charging phase
+    if charging_mode:
+        # Heat Pump Cycle Connections (Closed Loop with CycleCloser)
+        c1 = Connection(cc, 'out1', ev, 'in1', label='1')
+        c2 = Connection(ev, 'out1', cp, 'in1', label='2')
+        c3 = Connection(cp, 'out1', hx1, 'in2', label='3')
+        c4 = Connection(hx1, 'out2', cd, 'in2', label='4')
+        c5 = Connection(cd, 'out2', hx2, 'in2', label='5')
+        c6 = Connection(hx2, 'out2', va, 'in1', label='6')
+        c7 = Connection(va, 'out1', cc, 'in1', label='7')
 
-# Rankine Cycle Connections (Closed Loop with CycleCloser)
-rc_c1 = Connection(rc_closer, 'out1', rc_turbine, 'in1', label='RC1')
-rc_c2 = Connection(rc_turbine, 'out1', rc_condenser, 'in1', label='RC2')
-rc_c3 = Connection(rc_condenser, 'out1', rc_pump, 'in1', label='RC3')
-rc_c4 = Connection(rc_pump, 'out1', rc_steamGen, 'in1', label='RC4')
-rc_c5 = Connection(rc_steamGen, 'out1', rc_closer, 'in1', label='RC5')
+        nw.add_conns(c1, c2, c3, c4, c5, c6, c7)
 
-RC.add_conns(rc_c1, rc_c2, rc_c3, rc_c4, rc_c5)
+        # alternative connection
+        c11 = Connection(aso, 'out1', ev, 'in2', label='11')
+        c12 = Connection(ev, 'out2', asi, 'in1', label='12')
+        # Hot and Cold Storage Interfaces (Simplified)
+        c21 = Connection(sso, "out1", hx2, "in1", label='21')
+        c22 = Connection(hx2, "out1", cd, "in1", label="22")
+        c23 = Connection(cd, "out1", hx1, "in1", label="23")
+        c24 = Connection(hx1, "out1", ssi, "in1", label="24")
 
-# Connections to the ambient environment (source and sink)
-rc_ambient_c11 = Connection(rc_ambient_source_1, 'out1', rc_condenser, 'in2')
-rc_ambient_c12 = Connection(rc_condenser, 'out2', rc_ambient_sink_1, 'in1')
+        nw.add_conns(c11, c12, c21, c22, c23, c24)
 
-RC.add_conns(rc_ambient_c11, rc_ambient_c12)
+        # ---new parameters ---
+        hx1.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
+        hx2.set_attr(pr1=0.98, pr2=0.98)
+        ev.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
+        cp.set_attr(eta_s=0.85, P=1e7)
 
-# Connections to the ambient environment (source and sink)
-rc_ambient_c21 = Connection(rc_ambient_source_2, 'out1', rc_pump_sto, 'in1')
-rc_ambient_c22 = Connection(rc_ventil_sto, 'out1', rc_ambient_sink_2, 'in1')
+        c2.set_attr(x=1, fluid={'NH3': 1})
+        c4.set_attr(T=80)
+        c5.set_attr(T=60)
+        c6.set_attr(T=50)
+        c11.set_attr(T=5, p=1, fluid={'water': 1})
+        c12.set_attr(m=10)
+        c21.set_attr(m=10, p=0.5, fluid={"water": 1})
+    else:
+        # Rankine Cycle Connections (Closed Loop with CycleCloser)
+        c1 = Connection(cc, 'out1', tb, 'in1', label='1')
+        c2 = Connection(tb, 'out1', cd, 'in1', label='2')
+        c3 = Connection(cd, 'out1', p, 'in1', label='3')
+        c4 = Connection(p, 'out1', ph, 'in2', label='4')
+        c5 = Connection(ph, 'out2', ev, 'in2', label='5')
+        c6 = Connection(ev, 'out2', sh, 'in2', label='6')
+        c7 = Connection(sh, 'out2', cc, 'in1', label='7')
 
-RC.add_conns(rc_ambient_c21, rc_ambient_c22)
+        nw.add_conns(c1, c2, c3, c4, c5, c6, c7)
 
-# Connection storage
-rc_storage_c1 =  Connection(rc_pump_sto, 'out1', rc_steamGen, 'in2')
-rc_storage_c2 = Connection(rc_steamGen, 'out2', rc_ventil_sto, 'in1')
+        # Connections to the ambient environment (source and sink)
+        c11 = Connection(aso, 'out1', cd, 'in2', label='11')
+        c12 = Connection(cd, 'out2', asi, 'in1', label='12')
+        # Connections to the steam generator (source and sink)
+        c21 = Connection(sso, 'out1', sh, 'in1', label='21')
+        c22 = Connection(sh, 'out1', ev, 'in1', label='22')
+        c23 = Connection(ev, 'out1', ph, 'in1', label='23')
+        c24 = Connection(ph, 'out1', ssi, 'in1', label='24')
 
-RC.add_conns(rc_storage_c1, rc_storage_c2)
+        nw.add_conns(c11, c12, c21, c22, c23,c24)
+        
+        # ------- codenser connection --------
+        c11.set_attr(p=1, T=15, fluid={'water': 1})
+        # -------- storage connection -----------
+        c21.set_attr(T=100, p=1, fluid={'water': 1}) 
+        # ----------- main cycle connection ----------
+        c3.set_attr(p=0.1)
+        c4.set_attr(p=0.72, T=30, fluid={'ethanol': 1}) 
+        c6.set_attr(x=1) # evaporate at 70°C
+        c7.set_attr(Td_bp=5)
 
-# set parameter RC
-rc_condenser.set_attr(pr1=0.98, pr2=0.98)
-rc_steamGen.set_attr(pr1=0.98,pr2=0.98)
-rc_turbine.set_attr(eta_s=0.8)
-rc_pump.set_attr(eta_s=0.75, P=1e4)
+        # set parameter RC
+        tb.set_attr(eta_s=0.8)
+        p.set_attr(eta_s=0.8, P=1e7)
+        ph.set_attr(pr1=0.98, pr2=0.98, Q=-5e3)
+        ev.set_attr(pr1=0.98, pr2=0.98, Q=-5e3)
+        sh.set_attr(pr1=0.98, pr2=0.98)
 
-rc_pump_sto.set_attr(eta_s=0.75, P=1e4)
+        # ---------- Generator -------------
+        gen = Bus("generator")
+        gen.add_comps(
+            {"comp": tb, "char": 0.98, "base": "component"},
+            {"comp": p, "char": 0.98, "base": "bus"},
+        )
+        nw.add_busses(gen)
 
-rc_ambient_c11.set_attr(m=10, T=10, p=2, fluid={'water': 1})
-rc_c1.set_attr(T=400,m=3, fluid={'Ethanol': 1})
+# Set parameter        
+cd.set_attr(pr1=0.98, pr2=0.98)
 
-# ---------- Generator -------------
-generator = Bus("generator")
-generator.add_comps(
-    {"comp": rc_turbine, "char": 0.98, "base": "component"},
-    {"comp": rc_pump, "char": 0.98, "base": "bus"},
-    {"comp": rc_pump_sto, "char": 0.98, "base": "bus"},
-)
-RC.add_busses(generator)
+# Choose whether to run charging or discharging
+charging_mode = False  # Set to False for discharging phase
 
-# RC.solve(mode='design')
-# RC.print_results()
-#%% different ambient temperature
-import numpy as np
-import pandas as pd
-
-data = {
-    'T_source': [5, 10, 15, 20, 25]
-}
-# create a list named data
-# T0 = [5, 10, 15, 20, 25, 30, 35]
-
-# create Pandas array using data
-# data = pd.DataFrame(T0, columns=['Temp0'])
-COP = {
-    'T_source': [],
-    'eta' : []
-}
-
-for T in data['T_source']:
-    ev_c1.set_attr(T=T)
-    nw.solve('design')
-    rc_ambient_c21.set_attr(m=sto_c5.m.val, T=sto_c6.T.val, p=sto_c6.p.val, fluid={'water': 1})
-    rc_ambient_c22.set_attr(T=sto_c5.T.val, p=sto_c5.p.val)
-    RC.solve('design')
-    COP['T_source'] += [abs(hp_condenser.Q.val) / hp_compressor.P.val]
-    COP['eta'] += [(abs(generator.P.val) / abs(rc_steamGen.Q.val))*100]
-    
-# for i in range(len(array1)):
-    # array1.loc[i,1] =  abs(hp_condenser.Q.val/(hp_compressor.P.val+hp_pump_ev.P.val))
-    # array1.loc[i,2] = abs(generator.P.val/rc_steamGen.Q.val)*100
-
-#%% Plot
-import matplotlib.pyplot as plt
-import numpy as np
-from fluprodia import FluidPropertyDiagram
-# COP
-fig1, ax1 = plt.subplots()
-ax1.scatter(data['T_source'], COP['T_source'], s=100, color="#1f567d")
-# ax1.scatter(data['T_source'], COP['eta'], s=100, color="green")
-ax1.set_xlabel('Evaporation temperature in °C')
-ax1.set_ylabel('COP of the heat pump')
-ax1.grid()
-
-plt.tight_layout()
-fig1.savefig('heat_pump_parametric.png')
-# log-p-h
-diagram = FluidPropertyDiagram('NH3')
-diagram.set_unit_system(T='°C', p='bar', h='kJ/kg')
-
-# Create a figure and axis for plotting T-s diagram
-fig, ax = plt.subplots(1, figsize=(20, 10))
-isolines = {
-    'Q': np.linspace(0, 1, 2),
-    'p': np.array([1, 2, 5, 10, 20, 50, 100, 300]),
-    'v': np.array([]),
-    'h': np.arange(500, 3501, 500)
-}
+# Create appropriate connections
+create_connections(charging_mode=charging_mode)
 
 
-# Storing the model result in the dictionary
-for j in range(len(data)):
-    result_dict = {}
-    result_dict.update(
-        {cp.label: cp.get_plotting_data()[1] for cp in nw.comps['object']
-          if cp.get_plotting_data() is not None})
-
-    # Iterate over the results obtained from TESPy simulation
-    for key, data in result_dict.items():
-        # Calculate individual isolines for T-s diagram
-        result_dict[key]['datapoints'] = diagram.calc_individual_isoline(**data)
-
-    # Set isolines for T-s diagram
-    diagram.set_isolines(**isolines)
-    diagram.calc_isolines()
-
-    # diagram.set_limits(x_min=0, x_max=2100, y_min=1e0, y_max=2e2)
-    diagram.draw_isolines(fig, ax, 'logph', x_min=0, x_max=2100, y_min=0.5, y_max=2e2)
-    
-    for key in result_dict.keys():
-        datapoints = result_dict[key]['datapoints']
-        _ = ax.plot(datapoints['h'],datapoints['p'], color='#ff0000')
-        #_ = ax.scatter(datapoints['h'][0],datapoints['p'][0])
-
-fig.savefig('NH3_logph.png')
-
-#T-s
-# Initial Setup
-diagram = FluidPropertyDiagram('ethanol')
-diagram.set_unit_system(T='°C', p='bar', h='kJ/kg')
-
-# Storing the model result in the dictionary
-result_dict = {}
-result_dict.update(
-    {cp.label: cp.get_plotting_data()[1] for cp in RC.comps['object']
-
-      if cp.get_plotting_data() is not None})
-
-# Iterate over the results obtained from TESPy simulation
-for key, data in result_dict.items():
-    # Calculate individual isolines for T-s diagram
-    result_dict[key]['datapoints'] = diagram.calc_individual_isoline(**data)
-
-# Create a figure and axis for plotting T-s diagram
-fig, ax = plt.subplots(1, figsize=(20, 10))
-isolines = {
-    'Q': np.linspace(0, 1, 2),
-    'p': np.array([1, 2, 5, 10, 20, 50, 100, 300]),
-    'v': np.array([]),
-    'h': np.arange(500, 3501, 500)
-}
-
-# Set isolines for T-s diagram
-diagram.set_isolines(**isolines)
-diagram.calc_isolines()
-
-# Draw isolines on the T-s diagram
-diagram.draw_isolines(fig, ax, 'Ts', x_min=0, x_max=4000, y_min=0, y_max=400)
-
-# Adjust the font size of the isoline labels
-for text in ax.texts:
-    text.set_fontsize(10)
-
-# Plot T-s curves for each component
-for key in result_dict.keys():
-    datapoints = result_dict[key]['datapoints']
-    _ = ax.plot(datapoints['s'], datapoints['T'], color='#ff0000', linewidth=2)
-    _ = ax.scatter(datapoints['s'][0], datapoints['T'][0], color='#ff0000')
-
-# Set labels and title for the T-s diagram
-ax.set_xlabel('Entropy, s in J/kgK', fontsize=16)
-ax.set_ylabel('Temperature, T in °C', fontsize=16)
-ax.set_title('T-s Diagram of Rankine Cycle', fontsize=20)
-
-# Set font size for the x-axis and y-axis ticks
-ax.tick_params(axis='x', labelsize=12)
-ax.tick_params(axis='y', labelsize=12)
-plt.tight_layout()
-
-# Save the T-s diagram plot as an SVG file
-fig.savefig('rankine_ts_diagram.png')
+# Solve the network
+nw.solve(mode='design')
+nw.print_results()
+# {round(abs(hhx.Q.val) / cp.P.val, 4)}
+# print(COP)
