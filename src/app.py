@@ -66,24 +66,24 @@ def create_connections(network=None, charging_mode=True, temp=None):
         
         # Set attributes for the heat pump cycle
         hx1.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
-        hx2.set_attr(pr1=0.98, pr2=0.98)
+        hx2.set_attr(pr1=0.98, pr2=0.98) # ,ttd_l=5) # uncomment for model with environment temp setting
         ev.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
         cp.set_attr(eta_s=0.85, P=4e6)
         cd.set_attr(pr1=0.98, pr2=0.98)
-
-        c2.set_attr(x=1, fluid={'NH3': 1})
-        # c21.set_attr(T=35)
-        # c22.set_attr(T=50)
-        # c23.set_attr(T=100)
-        # c24.set_attr(T=100)
-        # c3.set_attr(p=28)
-        c4.set_attr(T=50)
-        c5.set_attr(T=40)
-        c6.set_attr(T=30)
         
+        # Storage connection
+        c24.set_attr(T=temp, m=10, p=10, fluid={"water": 1}) # comment for model with environment temp setting
+        # c24.set_attr(m=10, fluid={"water": 1}) # uncomment for model with environment temp setting
+      
+        # main connection
+        c2.set_attr(x=1, fluid={'NH3': 1})
+        # c4.set_attr(T=90) # uncomment for model with environment temp setting
+        c5.set_attr(x=0)
+        c6.set_attr(T=50)
+        
+        # evaporator connection
         c12.set_attr(m=10)
-        c21.set_attr(m=10, p=0.5, fluid={"water": 1})
-        c11.set_attr(T=temp, p=1, fluid={'water': 1})
+        c11.set_attr(T=10, p=1, fluid={'water': 1}) # T=temp for model with environment temp setting
         network.solve(mode='design')
         network.print_results()
 
@@ -138,3 +138,11 @@ def create_connections(network=None, charging_mode=True, temp=None):
         network.add_busses(gen)
     # nw.print_results()
     return network, cd, cp, hx1, hx2
+
+nw = Network(p_unit='bar', T_unit='C', h_unit='kJ / kg')
+
+# model with storage output temperature
+network = create_connections(network=nw, charging_mode=True, temp=200)
+
+# uncomment for model with environment temp setting
+# network = create_connections(network=nw, charging_mode=True, temp=10)
