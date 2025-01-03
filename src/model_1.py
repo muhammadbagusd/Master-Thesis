@@ -113,20 +113,21 @@ def create_connections(network=None, charging_mode=True, temp=None):
         # Set attributes for Rankine cycle
         cd.set_attr(pr1=0.98, pr2=0.98)
         tb.set_attr(eta_s=0.8)
-        p.set_attr(eta_s=0.8, P=1e7)
-        ph.set_attr(pr1=0.98, pr2=0.98, Q=-5e3)
-        ev.set_attr(pr1=0.98, pr2=0.98, Q=-5e3)
-        sh.set_attr(pr1=0.98, pr2=0.98)
+        p.set_attr(eta_s=0.8)
+        ph.set_attr(pr1=0.98, pr2=0.98, Q=-1e4)
+        ev.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
+        sh.set_attr(pr1=0.98, pr2=0.98, Q=-1e4)
 
         # Set Condenser connection
-        c11.set_attr(p=1, T=15, fluid={'water': 1})
+        c11.set_attr(m=10, p=1, T=15, fluid={'water': 1})
         # Set Storage connection
-        c21.set_attr(T=100, p=0.5, fluid={'water': 1})
+        c21.set_attr(T=temp, p=10, m=10, fluid={'water': 1})
         # Set Main cycle connection
-        c3.set_attr(p=0.1)
-        c4.set_attr(p=0.72, T=30, fluid={'ethanol': 1})
+        # c2.set_attr(p=1)
+        c4.set_attr(T=60, fluid={'ethanol': 1})
+        c5.set_attr(x=0)
         c6.set_attr(x=1)  # Evaporate at 70°C
-        c7.set_attr(Td_bp=5)
+        # c7.set_attr(Td_bp=5)
 
         # Generator setup
         gen = Bus("generator")
@@ -136,7 +137,7 @@ def create_connections(network=None, charging_mode=True, temp=None):
         )
         network.add_busses(gen)
     # nw.print_results()
-    return network, cd, cp, hx1, hx2
+    return network, cd, cp, hx1, hx2, gen, ph, ev, sh
 
 nw = Network(p_unit='bar', T_unit='C', h_unit='kJ / kg')
 
