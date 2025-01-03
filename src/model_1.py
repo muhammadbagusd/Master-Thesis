@@ -65,21 +65,20 @@ def create_connections(network=None, charging_mode=True, temp=None):
         network.add_conns(c11, c12, c21, c22, c23, c24)
         
         # Set attributes for the heat pump cycle
-        hx1.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
-        hx2.set_attr(pr1=0.98, pr2=0.98) # ,ttd_l=5) # uncomment for model with environment temp setting
+        # Set up for model with storage temperature
+        hx1.set_attr(pr1=0.98, pr2=0.98) # ttd_l=5) # uncomment for model with environment temp setting
+        hx2.set_attr(pr1=0.98, pr2=0.98, ttd_u=5) 
         ev.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
         cp.set_attr(eta_s=0.85, P=4e6)
         cd.set_attr(pr1=0.98, pr2=0.98)
         
         # Storage connection
-        c24.set_attr(T=temp, m=10, p=10, fluid={"water": 1}) # comment for model with environment temp setting
-        # c24.set_attr(m=10, fluid={"water": 1}) # uncomment for model with environment temp setting
-      
+        c21.set_attr(T=temp, m=10, p=10, fluid={"water": 1}) # T=40 for model with environment temp setting
+        
         # main connection
         c2.set_attr(x=1, fluid={'NH3': 1})
-        # c4.set_attr(T=90) # uncomment for model with environment temp setting
+        c3.set_attr(T=130) # comment for Model with evironment temp setting
         c5.set_attr(x=0)
-        c6.set_attr(T=50)
         
         # evaporator connection
         c12.set_attr(m=10)
@@ -142,7 +141,7 @@ def create_connections(network=None, charging_mode=True, temp=None):
 nw = Network(p_unit='bar', T_unit='C', h_unit='kJ / kg')
 
 # model with storage output temperature
-network = create_connections(network=nw, charging_mode=True, temp=200)
+network = create_connections(network=nw, charging_mode=True, temp=60)
 
 # uncomment for model with environment temp setting
 # network = create_connections(network=nw, charging_mode=True, temp=10)
