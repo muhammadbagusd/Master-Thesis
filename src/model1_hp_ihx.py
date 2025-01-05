@@ -147,7 +147,7 @@ def create_connections(network=None, charging_mode=True, temp=None):
         )
         network.add_busses(gen)
         network.solve(mode='design')
-        nw.print_results()
+        network.print_results()
     return network, cd, cp, hx1, hx2 #, gen, ph, ev, sh
 
 nw = Network(p_unit='bar', T_unit='C', h_unit='kJ / kg')
