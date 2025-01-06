@@ -59,7 +59,7 @@ def create_connections(network=None, charging_mode=True, temp=None):
 
         # set parameter connections
         c7.set_attr(m=19, fluid={'Nitrogen': 1}) # T=17
-        c2.set_attr(T=800)
+        c2.set_attr(p=105)
         c5.set_attr(p=25)
         # c4.set_attr(p=105)
         c11.set_attr(m=10, T=temp, p=25, fluid={'Water': 1}) # c12 T=20
