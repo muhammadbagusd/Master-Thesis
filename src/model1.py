@@ -1,3 +1,4 @@
+# ---------- input storage temperature -----------
 from tespy.components import Compressor, Condenser, SimpleHeatExchanger, HeatExchanger, Pump, Turbine, CycleCloser, Source, Sink, Valve
 from tespy.connections import Connection, Bus
 from tespy.networks import Network
@@ -66,28 +67,42 @@ def create_connections(network=None, charging_mode=True, temp=None):
         
         # Set attributes for the heat pump cycle
         # Set up for model with storage temperature
-        hx1.set_attr(pr1=0.98, pr2=0.98) # ttd_l=5) # uncomment for model with environment temp setting
-        hx2.set_attr(pr1=0.98, pr2=0.98, ttd_u=5) 
+        hx1.set_attr(pr1=0.98, pr2=0.98, ttd_l=5) # ttd_l=5) # uncomment for model with environment temp setting
+        hx2.set_attr(pr1=0.98, pr2=0.98, ttd_u=5) # ttd_u=5) 
         ev.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
         cp.set_attr(eta_s=0.85, P=4e6)
         cd.set_attr(pr1=0.98, pr2=0.98)
-        
         # Storage connection
         c21.set_attr(T=temp, m=10, p=10, fluid={"water": 1}) # T=40 for model with environment temp setting
-        
         # main connection
         c2.set_attr(x=1, fluid={'NH3': 1})
-        c3.set_attr(T=130) # comment for Model with evironment temp setting
+        # c3.set_attr(T=130) # comment for Model with evironment temp setting
         c5.set_attr(x=0)
-        
         # evaporator connection
         c12.set_attr(m=10)
-        c11.set_attr(T=10, p=1, fluid={'water': 1}) # T=temp for model with environment temp setting
+        c11.set_attr(T=10, p=1, fluid={'water': 1})
+        
+        # Parameter for environment temp
+        # Set attributes for the heat pump cycle
+        # hx1.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
+        # hx2.set_attr(pr1=0.98, pr2=0.98, ttd_u=5)
+        # ev.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
+        # cp.set_attr(eta_s=0.85, P=4e6)
+        # cd.set_attr(pr1=0.98, pr2=0.98)
+        # Storage connection
+        # c21.set_attr(T=30, m=10, p=10, fluid={"water": 1})        
+        # main connection
+        # c2.set_attr(x=1, fluid={'NH3': 1})
+        # c5.set_attr(x=0)
+        # evaporator connection
+        # c12.set_attr(m=10)
+        # c11.set_attr(T=temp, p=1, fluid={'water': 1})
+        
         network.solve(mode='design')
         network.print_results()
 
     else:
-        # ------------ Create Connections for Rankine Cycle -------------
+        # ------------ Create Connections f  or Rankine Cycle -------------
         # Rankine Cycle Connections (Closed Loop with CycleCloser)
         c1 = Connection(cc, 'out1', tb, 'in1', label='1')
         c2 = Connection(tb, 'out1', cd, 'in1', label='2')
@@ -116,7 +131,7 @@ def create_connections(network=None, charging_mode=True, temp=None):
         p.set_attr(eta_s=0.8)
         ph.set_attr(pr1=0.98, pr2=0.98, Q=-1e4)
         ev.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
-        sh.set_attr(pr1=0.98, pr2=0.98, Q=-1e4)
+        sh.set_attr(pr1=0.98, pr2=0.98, Q=-1e3)
 
         # Set Condenser connection
         c11.set_attr(m=10, p=1, T=15, fluid={'water': 1})
@@ -136,8 +151,10 @@ def create_connections(network=None, charging_mode=True, temp=None):
             {"comp": p, "char": 0.98, "base": "bus"},
         )
         network.add_busses(gen)
-    # nw.print_results()
-    return network, cd, cp, hx1, hx2, gen, ph, ev, sh
+        network.solve(mode='design')
+        nw.print_results()
+    return network, cd, hx1, hx2, cp 
+    # return network, gen, ph, ev, sh
 
 nw = Network(p_unit='bar', T_unit='C', h_unit='kJ / kg')
 
