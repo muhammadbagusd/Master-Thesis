@@ -71,7 +71,7 @@ def create_connections(network=None, charging_mode=True, temp=None):
         hx2.set_attr(pr1=0.98, pr2=0.98) # ttd_u=5) 
         ev.set_attr(pr1=0.98, pr2=0.98, ttd_l=15)
         cp.set_attr(eta_s=0.85, P=6e6)
-        cd.set_attr(pr1=0.98, pr2=0.98)
+        cd.set_attr(pr1=1, pr2=1)
         # Storage connection
         c24.set_attr(T=temp, m=10, p=10, fluid={"water": 1}) # T=40 for model with environment temp setting
         c21.set_attr(T=100)
