@@ -82,21 +82,25 @@ def create_connections(network=None, charging_mode=True, temp=None):
         c12.set_attr(m=10)
         c11.set_attr(T=10, p=1, fluid={'water': 1})
         
-        # Parameter for environment temp
-        # Set attributes for the heat pump cycle
-        # hx1.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
-        # hx2.set_attr(pr1=0.98, pr2=0.98, ttd_u=5)
+        # # Parameter for environment temp
+        # # Set attributes for the heat pump cycle
+        # hx1.set_attr(pr1=0.98, pr2=0.98) #, ttd_l=5)
+        # hx2.set_attr(pr1=0.98, pr2=0.98)
         # ev.set_attr(pr1=0.98, pr2=0.98, ttd_l=5)
-        # cp.set_attr(eta_s=0.85, P=4e6)
-        # cd.set_attr(pr1=0.98, pr2=0.98)
-        # Storage connection
-        # c21.set_attr(T=30, m=10, p=10, fluid={"water": 1})        
-        # main connection
+        # cp.set_attr(eta_s=0.85, P=6e6)
+        # cd.set_attr(pr1=1, pr2=1, Q=1e6)
+        # # Storage connection
+        # c24.set_attr(T=200, m=10, p=10, fluid={"water": 1})
+        # c21.set_attr(T=150)
+        # # main connection
         # c2.set_attr(x=1, fluid={'NH3': 1})
         # c5.set_attr(x=0)
-        # evaporator connection
+        # # evaporator connection
         # c12.set_attr(m=10)
         # c11.set_attr(T=temp, p=1, fluid={'water': 1})
+        
+        network.solve(mode='design')
+        network.print_results()
         
         network.solve(mode='design')
         network.print_results()
