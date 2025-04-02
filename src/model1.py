@@ -1,3 +1,4 @@
+# !!! New Update only HP Side ready !!!!
 # ---------- input storage temperature -----------
 from tespy.components import Compressor, Condenser, SimpleHeatExchanger, HeatExchanger, Pump, Turbine, CycleCloser, Source, Sink, Valve
 from tespy.connections import Connection, Bus
@@ -12,20 +13,20 @@ def create_connections_discharge(network=None, charging_mode=True, Tsto_in=None,
     if Tsto_out is None:
         raise ValueError("Temperature must be provided.")
 
-    # HP Components
     cp = Compressor('HP Compressor')
     cd = Condenser('HP Condenser')  # Transfers heat to hot storage
     va = Valve('HP Expansion Valve')
     ev = HeatExchanger('HP Evaporator')
+    pc = HeatExchanger('Pre Cooler')
+    sc = HeatExchanger('sub Cooler')
     cc = CycleCloser('HP Cycle Closer')  # Closes the heat pump loop
-    hx1 = HeatExchanger('Heat Exchanger 1')
-    hx2 = HeatExchanger('Heat Exchanger 2')
-    # Sources and Sinks
-    aso = Source('hp Ambient Source ev')
-    asi = Sink('hp Ambient Sink ev')
-    # Evaporator Sources and Sinks
+
+    # Storage Sources and Sinks
     sso = Source('Storage Source')
     ssi = Sink('Storage Sink')
+    # ambient Source and Sink
+    aso = Source('ambient Source')
+    asi = Sink('ambient Sink')
 
     # ORC components
     p = Pump('RC Pump')
@@ -46,51 +47,41 @@ def create_connections_discharge(network=None, charging_mode=True, Tsto_in=None,
         # Heat Pump Cycle Connections (Closed Loop with CycleCloser)
         c1 = Connection(cc, 'out1', ev, 'in2', label='1')
         c2 = Connection(ev, 'out2', cp, 'in1', label='2')
-        c3 = Connection(cp, 'out1', hx1, 'in1', label='3')
-        c4 = Connection(hx1, 'out1', hx2, 'in1', label='4')
-        c5 = Connection(hx2, 'out1', cd, 'in1', label='5')
-        c6 = Connection(cd, 'out1', va, 'in1', label='6')
+        c3 = Connection(cp, 'out1', pc, 'in1', label='3')
+        c4 = Connection(pc, 'out1', cd, 'in1', label='4')
+        c5 = Connection(cd, 'out1', sc, 'in1', label='5')
+        c6 = Connection(sc, 'out1', va, 'in1', label='6')
         c7 = Connection(va, 'out1', cc, 'in1', label='7')
 
-        network.add_conns(c1, c2, c3, c4, c5, c6, c7)
+        c11 = Connection(sso, 'out1', sc, 'in2', label='11')
+        c12 = Connection(sc, 'out2', cd, 'in2', label='12')
+        c13 = Connection(cd, 'out2', pc, 'in2', label='13')
+        c14 = Connection(pc, 'out2', ssi, 'in1', label='14')
 
-        # Alternative connection
-        c11 = Connection(aso, 'out1', ev, 'in1', label='11')
-        c12 = Connection(ev, 'out1', asi, 'in1', label='12')
-        # Hot and Cold Storage Interfaces
-        c21 = Connection(sso, "out1", cd, "in2", label='21')
-        c22 = Connection(cd, "out2", hx2, "in2", label="22")
-        c23 = Connection(hx2, "out2", hx1, "in2", label="23")
-        c24 = Connection(hx1, "out2", ssi, "in1", label="24")
+        c21 = Connection(aso, 'out1', ev, 'in1', label='21')
+        c22 = Connection(ev, 'out1', asi, 'in1', label='22')
 
-        network.add_conns(c11, c12, c21, c22, c23, c24)
+        network.add_conns(c1, c2, c3, c4, c5, c6, c7, c11, c12, c13, c14, c21, c22)
+
+        ev.set_attr(pr1=1, pr2=1, ttd_u=5) #ttd_l = out1-in2, ttd_u = in1 - out2
+        cp.set_attr(eta_s=0.8)
+        cd.set_attr(pr1=0.98, pr2=0.98, ttd_l=10)
+        pc.set_attr(pr1=1, pr2=1, ttd_l=10)
+        sc.set_attr(pr1=1, pr2=1)
+        # va.set_attr(pr=0.3)
+
+        c21.set_attr(T=Tenv, m=10, fluid={"water": 1})
+        c22.set_attr(p=1)
+
+        c11.set_attr(T=Tsto_in, p=2, fluid={"water": 1}) # T=40 for model with environment temp setting
+        c14.set_attr(T=Tsto_out)
+
+        c2.set_attr(m=10, p=10)
+        c3.set_attr(p=60, fluid={'CarbonDioxide': 1})
+        # c5.set_attr(x=0)
+
         
-        # Set attributes for the heat pump cycle
-        # Set up for model with storage temperature
-        hx1.set_attr(pr2=1, pr1=1, kA=1e5) # ttd_l=5) # uncomment for model with environment temp setting
-        hx2.set_attr(pr1=1, ttd_l=5) # ttd_u=5) 
-        ev.set_attr(pr1=1, ttd_u=5) #ttd_l = out1-in2, ttd_u = in1 - out2
-        cp.set_attr(P=5e6)
-        cd.set_attr(pr1=1, pr2=1, ttd_l=5)
-        # va.set_attr(pr=0.1)
-        # Storage connection
-        c24.set_attr(T=Tsto_out, x=0, fluid={"water": 1}) # T=40 for model with environment temp setting
-        # c23.set_attr(T=120)
-        c21.set_attr(x=0, T=Tsto_in)
-        # main connection
-        c1.set_attr(p=5)
-        c2.set_attr(m=10, x=1, fluid={'NH3': 1})
-        # c7.set_attr(p=1)
-        # c3.set_attr(p=10) # comment for Model with evironment temp setting
-        # c4.set_attr(T=190)
-        # c5.set_attr(T=185)
-        # c7.set_attr(T=-10)
-        # c6.set_attr(x=0)
-        # evaporator connection
-        c12.set_attr(m=10)
-        c11.set_attr(T=Tenv, p=1, fluid={'water': 1})
-        
-         # Generator setup
+        # Generator setup
         ep_hp = Bus("Produkt")
         ep_hp.add_comps(
             {"comp": ssi, "char": 0.98, "base": "component"}, # bus itu buat yg masuk ke system, component buat yg keluar
@@ -171,12 +162,15 @@ def create_connections_discharge(network=None, charging_mode=True, Tsto_in=None,
         network.add_busses(gen, ef_orc, el_orc)
         
         network.solve(mode='design')
-        network.print_results()
-    # return network, cd, hx1, hx2, cp, ep_hp, ef_hp, el_hp
-    return network, gen, ph, ev, sh, ef_orc, el_orc
+        # network.print_results()
+    return network, cd, hx1, hx2, cp, ep_hp, ef_hp, el_hp
+    # return network, gen, ph, ev, sh, ef_orc, el_orc
 
 nw_1 = Network(p_unit='bar', T_unit='C', h_unit='kJ / kg')
 
 # model with storage output temperature
-# network, cd, hx1, hx2, cp, ep_hp, ef_hp, el_hp  = create_connections_discharge(network=nw_1, charging_mode=True, Tsto_in=70, Tsto_out=170, Tenv=10)
-network, gen, ph, ev, sh, ef_orc, el_orc = create_connections_discharge(network=nw_1, charging_mode=False, Tsto_in=70, Tsto_out=170, Tenv=10)
+network, cd, hx1, hx2, cp, ep_hp, ef_hp, el_hp  = create_connections_discharge(network=nw_1, charging_mode=True, Tsto_in=10, Tsto_out=100, Tenv=10)
+# network, gen, ph, ev, sh, ef_orc, el_orc = create_connections_discharge(network=nw_1, charging_mode=False, Tsto_in=70, Tsto_out=170, Tenv=10)
+
+# uncomment for model with environment temp setting
+# network = create_connections(network=nw, charging_mode=True, temp=10)
