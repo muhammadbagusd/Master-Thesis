@@ -51,24 +51,25 @@ def create_connections(network=None, charging_mode=True, temp=None):
         hxa.set_attr(pr=0.98)
         hxb.set_attr(pr=0.98)        
         # rg.set_attr(pr1=1, pr2=1, Q=-8e6) # ttd_u=30 , Q=-8e6
-        hhx.set_attr(pr1=1, pr2=1, ttd_l=5)#, ttd_l=150)
+        hhx.set_attr(pr1=1, pr2=1, ttd_u=10)#, ttd_l=150)
         cp.set_attr(eta_s=0.8) #, P=5e6
         chx.set_attr(pr1=1, pr2=1, ttd_u=5)#, ttd_u=50)
-        tb.set_attr(eta_s=0.8, pr=0.2)
+        tb.set_attr(eta_s=0.8)
 
         # set parameter connections
-        c1.set_attr(T=250)
+        c1.set_attr(T=temp)
         c7.set_attr(fluid={'Nitrogen': 1}) # T=17
         c2.set_attr(p=105)
-        # c3.set_attr(T=250)
+        c3.set_attr(T=200)
         c4.set_attr(T=temp)
         # c5.set_attr(T=-40)
         # c6.set_attr(T=20)
-        c11.set_attr(T=temp, h=20) # c12 T=20
-        c12.set_attr(h=10, fluid={'Methanol': 1})
-        c13.set_attr(x=0, T=200)
-        c14.set_attr(m=10, T=400, fluid={'water': 1})
+        c11.set_attr(T=temp, x=0) # c12 T=20
+        c12.set_attr(m=5, fluid={'water': 1})
+        c13.set_attr(p=30, T=200)
+        c14.set_attr(m=10, T=400, fluid={'air': 1})
         
+        network.set_attr(iterinfo=False)
         network.solve(mode='design')
         network.print_results()
         
@@ -100,25 +101,27 @@ def create_connections(network=None, charging_mode=True, temp=None):
         
         # Set turbine and compressor conditions for discharging phase
         tb.set_attr(eta_s=0.9) # Full efficiency for power generation
-        cp.set_attr(P=1e5)  # Very low efficiency (no compression during discharge)
-        chx.set_attr(pr1=1, ttd_l=5)
+        cp.set_attr(eta_s=0.95)  # Very low efficiency (no compression during discharge)
+        chx.set_attr(pr1=1, pr2=1) #ttd_l = out1-in2, ttd_u = in1 - out2
         # Set parameter        
         # hxa.set_attr(pr=0.98)
-        hxb.set_attr(pr=0.98)        
-        hhx.set_attr(pr1=1, pr2=1, ttd_l=50)
+        hxb.set_attr(pr=1)        
+        hhx.set_attr(pr1=1, pr2=1, ttd_u=10)
         
         # set parameter connections
-        d1.set_attr(T=200, p=30)
-        d2.set_attr(T=temp+80)
-        # d3.set_attr(T=-10)
-        d4.set_attr(p=100, fluid={'Nitrogen': 1}) # T=17
+        # d1.set_attr(p=5)
+        d2.set_attr(m=10, T=temp+50)
+        d3.set_attr(T=temp)
+        d4.set_attr(p=105, fluid={'Nitrogen': 1}) # T=17
         # d5.set_attr(T=250)
-        # d6.set_attr(T=25)
+        # d6.set_attr(T=205)
 
-        d11.set_attr(m=10, T=temp, h=50, fluid={'Methanol': 1}) # c12 T=20
-        d12.set_attr(p=1)
-        d13.set_attr(x=0, T=400) #, T=271
-        d14.set_attr(T=200, fluid={'water': 1}) 
+        d11.set_attr(T=temp, x=0) # c12 T=20
+        d12.set_attr(m=5, fluid={'water': 1})
+        d13.set_attr(p=30, T=400) #, T=271
+        d14.set_attr(m=10, T=200, fluid={'air': 1}) 
+        
+        network.set_attr(iterinfo=False)
         network.solve(mode='design')
         network.print_results()
     return network, tb, cp, chx, hhx, hxa, hxb
@@ -127,8 +130,3 @@ def create_connections(network=None, charging_mode=True, temp=None):
 br = Network(fluids=['Water', 'Nitrogen', 'Methanol'], p_unit='bar', T_unit='C', h_unit='kJ / kg')
 network, tb, cp, chx, hhx, hxa, hxb = create_connections(network=br, charging_mode=True, temp=10)
 # network, gen, tb, cp, chx, hhx, hxa, hxb  = create_connections(network=br, charging_mode=False, temp=10)
-
-#---- COP HP --------
-# abs(hhx.Q.val / (cp.P.val- abs(tb.P.val)))
-# ----- eta ORC ----
-# 100*(gen.P.val/(hhx.Q.val))
