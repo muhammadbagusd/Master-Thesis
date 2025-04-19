@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from fluprodia import FluidPropertyDiagram
 
-def create_connections(network=None, charging_mode=True, Tsto_in=None, Tsto_out=None, Tenv=None):
+def create_connections_charge(network=None, charging_mode=True, Tsto_in=None, Tsto_out=None, Tenv=None):
     # Create Brayton Cycle Network
     # Ensure temp is provided for non-looped operation
     if Tsto_out is None:
@@ -69,15 +69,16 @@ def create_connections(network=None, charging_mode=True, Tsto_in=None, Tsto_out=
         sc.set_attr(pr1=1, pr2=1)
         # va.set_attr(pr=0.3)
 
-        c21.set_attr(T=Tenv,  fluid={"air": 1})
+        c21.set_attr(T=Tenv, fluid={"air": 1})
         c22.set_attr(p=1)
 
-        c11.set_attr(T=Tsto_in, p=1, fluid={"water": 1}) # T=40 for model with environment temp setting
+        c11.set_attr(T=Tsto_in, p=1, m=10, fluid={"water": 1}) # T=40 for model with environment temp setting
         c14.set_attr(T=Tsto_out)
-
-        c2.set_attr(p=8, m=10)
+        
+        # c1.set_attr(m=10)
+        c2.set_attr(p=8)
         c3.set_attr(p=34.73, fluid={'R32': 1})
-        c6.set_attr(Td_bp=-5)
+        c6.set_attr(T=Tsto_in+5)
 
         
         # Generator setup
@@ -94,6 +95,8 @@ def create_connections(network=None, charging_mode=True, Tsto_in=None, Tsto_out=
         el_hp.add_comps({'comp': aso, 'base': 'bus'}, {'comp': asi}) # bus itu buat yg masuk ke system, component buat yg keluar
 
         network.add_busses(ep_hp, ef_hp, el_hp)
+        
+        network.set_attr(iterinfo=False)
         network.solve(mode='design')
         network.print_results()
 
@@ -120,16 +123,16 @@ def create_connections(network=None, charging_mode=True, Tsto_in=None, Tsto_out=
 
         ev.set_attr(pr1=1, pr2=1, ttd_l=5) #ttd_l = out1-in2, ttd_u = in1 - out2
         tb.set_attr(eta_s=0.9) 
-        cd.set_attr(pr1=1, pr2=1, ttd_u=5)
+        cd.set_attr(pr1=1, pr2=1)
         cp.set_attr(eta_s=0.8)
         ph.set_attr(pr1=1, pr2=1)
         sh.set_attr(pr1=1, pr2=1, ttd_l=10)
         # va.set_attr(pr=0.3)
 
         c21.set_attr(T=Tenv, p=1, fluid={"air": 1})
-        # c22.set_attr(m=10)
+        # c22.set_attr()
 
-        c11.set_attr(T=Tsto_out, p=1, m=10, fluid={"water": 1}) # T=40 for model with environment temp setting
+        c11.set_attr(T=Tsto_out, m=10, p=1, fluid={"water": 1}) # T=40 for model with environment temp setting
         c14.set_attr(T=Tsto_in)
 
         c1.set_attr(p=8, Td_bp=5, fluid={'R245fa': 1})
@@ -155,6 +158,7 @@ def create_connections(network=None, charging_mode=True, Tsto_in=None, Tsto_out=
         
         network.add_busses(gen, ef_orc, el_orc)
         
+        network.set_attr(iterinfo=False)
         network.solve(mode='design')
         network.print_results()
     return network, cd, pc, sc, cp, ep_hp, ef_hp, el_hp
@@ -163,5 +167,5 @@ def create_connections(network=None, charging_mode=True, Tsto_in=None, Tsto_out=
 nw_1 = Network(p_unit='bar', T_unit='C', h_unit='kJ / kg')
 
 # model with storage output temperature
-network, cd, pc, sc, cp, ep_hp, ef_hp, el_hp  = create_connections(network=nw_1, charging_mode=True, Tsto_in=16, Tsto_out=90, Tenv=10)
-# network, gen, ph, ev, sh, ef_orc, el_orc = create_connections(network=nw_1, charging_mode=False, Tsto_in=16, Tsto_out=90, Tenv=10)
+network, cd, pc, sc, cp, ep_hp, ef_hp, el_hp  = create_connections_charge(network=nw_1, charging_mode=True, Tsto_in=16, Tsto_out=90, Tenv=10)
+# network, gen, ph, ev, sh, ef_orc, el_orc = create_connections_charge(network=nw_1, charging_mode=False, Tsto_in=20, Tsto_out=90, Tenv=10)
