@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from fluprodia import FluidPropertyDiagram
 
-def create_connections_charge(network=None, charging_mode=True, Tsto_in=None, Tsto_out=None, Tenv=None):
+def create_connections_discharge(network=None, charging_mode=True, Tsto_in=None, Tsto_out=None, Tenv=None):
     # Create Brayton Cycle Network
     # Ensure temp is provided for non-looped operation
     if Tsto_out is None:
@@ -28,7 +28,7 @@ def create_connections_charge(network=None, charging_mode=True, Tsto_in=None, Ts
     asi = Sink('ambient Sink')
 
     # ORC components
-    cp = Pump('RC Pump')
+    p = Pump('RC Pump')
     sg = HeatExchanger('RC steam generator')  # Receives heat from hot storage
     tb = Turbine('RC Turbine')
     cd = Condenser('RC Condenser')
@@ -63,7 +63,7 @@ def create_connections_charge(network=None, charging_mode=True, Tsto_in=None, Ts
         network.add_conns(c1, c2, c3, c4, c5, c6, c7, c11, c12, c13, c14, c21, c22)
 
         ev.set_attr(pr1=1, pr2=1, ttd_l=5) #ttd_l = out1-in2, ttd_u = in1 - out2
-        cp.set_attr(eta_s=0.9)
+        # cp.set_attr(eta_s=0.9)
         cd.set_attr(pr1=1, pr2=1, ttd_u=10)
         pc.set_attr(pr1=1, pr2=1, ttd_u=5)
         sc.set_attr(pr1=1, pr2=1)
@@ -76,8 +76,8 @@ def create_connections_charge(network=None, charging_mode=True, Tsto_in=None, Ts
         c14.set_attr(T=Tsto_out)
         
         # c1.set_attr(m=10)
-        c2.set_attr(p=8)
-        c3.set_attr(p=34.73, fluid={'R32': 1})
+        c2.set_attr(p=9.5, x=1)
+        c3.set_attr(p=30, fluid={'R32': 1})
         c6.set_attr(T=Tsto_in+5)
 
         
@@ -105,8 +105,8 @@ def create_connections_charge(network=None, charging_mode=True, Tsto_in=None, Ts
         # Rankine Cycle Connections (Closed Loop with CycleCloser)
         c1 = Connection(cc, 'out1', tb, 'in1', label='1')
         c2 = Connection(tb, 'out1', cd, 'in1', label='2')
-        c3 = Connection(cd, 'out1', cp, 'in1', label='3')
-        c4 = Connection(cp, 'out1', ph, 'in2', label='4')
+        c3 = Connection(cd, 'out1', p, 'in1', label='3')
+        c4 = Connection(p, 'out1', ph, 'in2', label='4')
         c5 = Connection(ph, 'out2', ev, 'in2', label='5')
         c6 = Connection(ev, 'out2', sh, 'in2', label='6')
         c7 = Connection(sh, 'out2', cc, 'in1', label='7')
@@ -124,12 +124,12 @@ def create_connections_charge(network=None, charging_mode=True, Tsto_in=None, Ts
         ev.set_attr(pr1=1, pr2=1, ttd_l=5) #ttd_l = out1-in2, ttd_u = in1 - out2
         tb.set_attr(eta_s=0.9) 
         cd.set_attr(pr1=1, pr2=1)
-        cp.set_attr(eta_s=0.8)
+        p.set_attr(eta_s=0.8)
         ph.set_attr(pr1=1, pr2=1)
         sh.set_attr(pr1=1, pr2=1, ttd_l=10)
         # va.set_attr(pr=0.3)
 
-        c21.set_attr(T=Tenv, p=1, fluid={"air": 1})
+        c21.set_attr(m=563, T=Tenv, p=1, fluid={"air": 1})
         # c22.set_attr()
 
         c11.set_attr(T=Tsto_out, m=10, p=1, fluid={"water": 1}) # T=40 for model with environment temp setting
@@ -146,7 +146,7 @@ def create_connections_charge(network=None, charging_mode=True, Tsto_in=None, Ts
         gen = Bus("generator")
         gen.add_comps(
             {"comp": tb, "char": 0.98, "base": "component"},
-            {"comp": cp, "char": 0.98, "base": "bus"},
+            {"comp": p, "char": 0.98, "base": "bus"},
         ) 
         ef_orc = Bus('Fuel')
         ef_orc.add_comps(
@@ -167,5 +167,5 @@ def create_connections_charge(network=None, charging_mode=True, Tsto_in=None, Ts
 nw_1 = Network(p_unit='bar', T_unit='C', h_unit='kJ / kg')
 
 # model with storage output temperature
-network, cd, pc, sc, cp, ep_hp, ef_hp, el_hp  = create_connections_charge(network=nw_1, charging_mode=True, Tsto_in=16, Tsto_out=90, Tenv=10)
-# network, gen, ph, ev, sh, ef_orc, el_orc = create_connections_charge(network=nw_1, charging_mode=False, Tsto_in=20, Tsto_out=90, Tenv=10)
+network, cd, pc, sc, cp, ep_hp, ef_hp, el_hp  = create_connections_discharge(network=nw_1, charging_mode=True, Tsto_in=16, Tsto_out=90, Tenv=10)
+# network, gen, ph, ev, sh, ef_orc, el_orc = create_connections_discharge(network=nw_1, charging_mode=False, Tsto_in=16, Tsto_out=91, Tenv=5)
