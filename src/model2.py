@@ -32,11 +32,9 @@ def create_connections(network=None, charging_mode=True, temp=None):
         # Charging: From compressor to storage via heat exchangers
         c1 = Connection(cc, 'out1', cp, 'in1', label='c1') 
         c2 = Connection(cp, 'out1', hhx, 'in1', label='c2')
-        c3 = Connection(hhx, 'out1', hxa, 'in1', label='c3')
-        c4 = Connection(hxa, 'out1', tb, 'in1', label='c4')
-        c5 = Connection(tb, 'out1', chx, 'in2', label='c5')
-        c6 = Connection(chx, 'out2', hxb, 'in1', label='c6')
-        c7 = Connection(hxb, 'out1', cc, 'in1', label='c7')
+        c3 = Connection(hhx, 'out1', tb, 'in1', label='c3')
+        c4 = Connection(tb, 'out1', chx, 'in2', label='c4')
+        c5 = Connection(chx, 'out2', cc, 'in1', label='c5')
         
         # Storage connections for charging phase
         c11 = Connection(cssoc, 'out1', chx, 'in1', label='c11')  # Cooling in charging
@@ -45,29 +43,36 @@ def create_connections(network=None, charging_mode=True, temp=None):
         c14 = Connection(hhx, 'out2', hssic, 'in1', label='c14')
 
         # Add connections to network
-        network.add_conns(c1, c2, c3, c4, c5, c6, c7, c11, c12, c13, c14)
+        network.add_conns(c1, c2, c3, c4, c5, c11, c12, c13, c14)
+        
+        generator = Bus("generator")
+        generator.add_comps(
+            {"comp": tb, "char": 0.98, "base": "component"},
+            {"comp": cp, "char": 0.98, "base": "bus"},
+        )
+        network.add_busses(generator)
         
         # Set parameter        
-        hxa.set_attr(pr=0.98)
-        hxb.set_attr(pr=0.98)        
+        # hxa.set_attr(pr=0.98)
+        # hxb.set_attr(pr=0.98)        
         # rg.set_attr(pr1=1, pr2=1, Q=-8e6) # ttd_u=30 , Q=-8e6
         hhx.set_attr(pr1=1, pr2=1, ttd_u=10)#, ttd_l=150)
-        cp.set_attr(eta_s=0.8) #, P=5e6
-        chx.set_attr(pr1=1, pr2=1, ttd_u=5)#, ttd_u=50)
-        tb.set_attr(eta_s=0.8)
+        # cp.set_attr(eta_s=0.1) #, P=5e6
+        chx.set_attr(pr1=1, pr2=1, ttd_u=1)#, ttd_u=50)
+        tb.set_attr(eta_s=0.95)
 
         # set parameter connections
-        c1.set_attr(T=temp)
-        c7.set_attr(fluid={'Nitrogen': 1}) # T=17
-        c2.set_attr(p=105)
-        c3.set_attr(T=200)
-        c4.set_attr(T=temp)
+        c1.set_attr(p=18)
+        c2.set_attr(m=10, fluid={'Nitrogen': 1}) # T=17
+        # c2.set_attr(p=105)
+        c3.set_attr(p=105, T=temp+10)
+        # c4.set_attr(T=temp-10)
         # c5.set_attr(T=-40)
         # c6.set_attr(T=20)
         c11.set_attr(T=temp, x=0) # c12 T=20
         c12.set_attr(m=5, fluid={'water': 1})
-        c13.set_attr(p=30, T=200)
-        c14.set_attr(m=10, T=400, fluid={'air': 1})
+        c13.set_attr(T=temp, p=30)
+        c14.set_attr(T=400, fluid={'air': 1})
         
         network.set_attr(iterinfo=False)
         network.solve(mode='design')
@@ -75,13 +80,11 @@ def create_connections(network=None, charging_mode=True, temp=None):
         
     else:
         # Discharging: From compressor to storage via heat exchangers
-        d1 = Connection(cc, 'out1', hxb, 'in1', label='d1')
-        d2 = Connection(hxb, 'out1', chx, 'in1', label='d2')
-        d3 = Connection(chx, 'out1', cp, 'in1', label='d3')
-        d4 = Connection(cp, 'out1', hhx, 'in2', label='d4')
-        # d5 = Connection(hxa, 'out1', hhx, 'in2', label='d5')
-        d6 = Connection(hhx, 'out2', tb, 'in1', label='d6')
-        d7 = Connection(tb, 'out1', cc, 'in1', label='d7')
+        d1 = Connection(cc, 'out1', chx, 'in1', label='d1')
+        d2 = Connection(chx, 'out1', cp, 'in1', label='d2')
+        d3 = Connection(cp, 'out1', hhx, 'in2', label='d3')
+        d4 = Connection(hhx, 'out2', tb, 'in1', label='d4')
+        d5 = Connection(tb, 'out1', cc, 'in1', label='d5')
 
         # Storage connections for charging phase
         d11 = Connection(cssoc, 'out1', chx, 'in2', label='d11')  # Cooling in charging
@@ -90,7 +93,7 @@ def create_connections(network=None, charging_mode=True, temp=None):
         d14 = Connection(hhx, 'out1', hssid, 'in1', label='d14')
 
         # Add reversed connections to network
-        network.add_conns(d1, d2, d3, d4, d6, d7, d11, d12, d13, d14)
+        network.add_conns(d1, d2, d3, d4, d5, d11, d12, d13, d14)
         
         generator = Bus("generator")
         generator.add_comps(
@@ -101,32 +104,38 @@ def create_connections(network=None, charging_mode=True, temp=None):
         
         # Set turbine and compressor conditions for discharging phase
         tb.set_attr(eta_s=0.9) # Full efficiency for power generation
-        cp.set_attr(eta_s=0.95)  # Very low efficiency (no compression during discharge)
-        chx.set_attr(pr1=1, pr2=1) #ttd_l = out1-in2, ttd_u = in1 - out2
+        # cp.set_attr(eta_s=0.8)  # Very low efficiency (no compression during discharge)
+        chx.set_attr(pr1=1, pr2=1, ttd_u=120) #ttd_l = out1-in2, ttd_u = in1 - out2
         # Set parameter        
         # hxa.set_attr(pr=0.98)
-        hxb.set_attr(pr=1)        
-        hhx.set_attr(pr1=1, pr2=1, ttd_u=10)
+        # hxb.set_attr(pr=1)        
+        hhx.set_attr(pr1=1, pr2=1, ttd_l=1)
         
         # set parameter connections
-        # d1.set_attr(p=5)
-        d2.set_attr(m=10, T=temp+50)
-        d3.set_attr(T=temp)
-        d4.set_attr(p=105, fluid={'Nitrogen': 1}) # T=17
-        # d5.set_attr(T=250)
-        # d6.set_attr(T=205)
+        
+        d1.set_attr(p=18)
+        # d2.set_attr(m=10)
+        d2.set_attr(T=temp)
+        d3.set_attr(m=10, p=105, fluid={'Nitrogen': 1}) # T=17
+        # d4.set_attr(T=300)
+        # d5.set_attr(p=10)
 
-        d11.set_attr(T=temp, x=0) # c12 T=20
+        d11.set_attr(T=10, x=0) # c12 T=20
         d12.set_attr(m=5, fluid={'water': 1})
-        d13.set_attr(p=30, T=400) #, T=271
-        d14.set_attr(m=10, T=200, fluid={'air': 1}) 
+        d13.set_attr( p=30, T=400) #, T=271
+        d14.set_attr(T=200, fluid={'air': 1}) 
         
         network.set_attr(iterinfo=False)
         network.solve(mode='design')
         network.print_results()
-    return network, tb, cp, chx, hhx, hxa, hxb
+    return network, tb, cp, chx, hhx, hxa, hxb, generator
     # return network, generator, tb, cp, chx, hhx, hxa, hxb
 
 br = Network(fluids=['Water', 'Nitrogen', 'Methanol'], p_unit='bar', T_unit='C', h_unit='kJ / kg')
-network, tb, cp, chx, hhx, hxa, hxb = create_connections(network=br, charging_mode=True, temp=10)
+network, tb, cp, chx, hhx, hxa, hxb, generator = create_connections(network=br, charging_mode=True, temp=10)
 # network, gen, tb, cp, chx, hhx, hxa, hxb  = create_connections(network=br, charging_mode=False, temp=10)
+
+#---- COP HP --------
+# abs(hhx.Q.val / (cp.P.val- abs(tb.P.val)))
+# ----- eta ORC ----
+# 100*(gen.P.val/(hhx.Q.val))
