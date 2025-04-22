@@ -21,8 +21,6 @@ def create_connections(network=None, charging_mode=True, temp=None):
     # Define Storage Tanks
     hssoc = Source('Hot Storage Charge Source')
     hssic = Sink('Hot Storage Charge Sink')
-    hssod = Source('Hot Storage Discharge Source')
-    hssid= Sink('Hot Storage Discharge Sink')
     cssoc = Source('Cold Storage Charge Source')
     cssic = Sink('Cold Storage Charge Sink')
 
@@ -89,8 +87,8 @@ def create_connections(network=None, charging_mode=True, temp=None):
         # Storage connections for charging phase
         d11 = Connection(cssoc, 'out1', chx, 'in2', label='d11')  # Cooling in charging
         d12 = Connection(chx, 'out2', cssic, 'in1', label='d12')
-        d13 = Connection(hssod, 'out1', hhx, 'in1', label='d13')  # Heat into storage
-        d14 = Connection(hhx, 'out1', hssid, 'in1', label='d14')
+        d13 = Connection(hssoc, 'out1', hhx, 'in1', label='d13')  # Heat into storage
+        d14 = Connection(hhx, 'out1', hssic, 'in1', label='d14')
 
         # Add reversed connections to network
         network.add_conns(d1, d2, d3, d4, d5, d11, d12, d13, d14)
